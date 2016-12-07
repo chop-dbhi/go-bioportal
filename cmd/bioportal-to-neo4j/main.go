@@ -49,14 +49,21 @@ func main() {
 	log.SetFlags(0)
 
 	args := os.Args[1:]
-	if len(args) < 2 {
-		log.Fatal("vocabulary id and label required")
+	if len(args) < 3 {
+		log.Fatal("vocabulary id, label, and path required")
 	}
 
 	vocabID := args[0]
 	vocabLabel := args[1]
+	vocabPath := args[2]
 
-	cr := csv.NewReader(os.Stdin)
+	f, err := os.Open(vocabPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	cr := csv.NewReader(f)
 	_, err := cr.Read()
 	if err != nil {
 		log.Fatalf("error reading row: %s", err)
