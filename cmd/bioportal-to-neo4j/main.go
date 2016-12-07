@@ -57,14 +57,14 @@ func main() {
 	vocabLabel := args[1]
 	vocabPath := args[2]
 
-	f, err := os.Open(vocabPath)
+	vf, err := os.Open(vocabPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer f.Close()
+	defer vf.Close()
 
-	cr := csv.NewReader(f)
-	_, err := cr.Read()
+	cr := csv.NewReader(vf)
+	_, err = cr.Read()
 	if err != nil {
 		log.Fatalf("error reading row: %s", err)
 	}
