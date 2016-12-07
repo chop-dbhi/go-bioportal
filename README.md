@@ -56,3 +56,7 @@ icd10cm_nodes_vocabulary.csv icd10cm_rels_subclassof.csv
 
 $ bash icd10cm_load.sh  # assuming the paths are correct
 ```
+
+This will populate the database which and would look something like this in the interface.
+
+![icd10cm-graph](./assets/icd10cm-graph.png)
