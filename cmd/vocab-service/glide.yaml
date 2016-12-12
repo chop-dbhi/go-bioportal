@@ -1,0 +1,7 @@
+package: github.com/chop-dbhi/bioportal/services/vocab
+import:
+- package: github.com/johnnadratowski/golang-neo4j-bolt-driver
+- package: github.com/rs/cors
+  version: ~1.0.0
+- package: github.com/tylerb/graceful
+  version: ~1.2.13
