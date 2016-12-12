@@ -89,7 +89,7 @@ func main() {
 		case "validate":
 			vocab := req.Params["vocab"].(string)
 			var codes []string
-			for _, v := range req.Params["code"].([]interface{}) {
+			for _, v := range req.Params["codes"].([]interface{}) {
 				codes = append(codes, v.(string))
 			}
 			resp, err = svc.Validate(vocab, codes)
@@ -147,7 +147,7 @@ func main() {
 		case "flatten":
 			vocab := req.Params["vocab"].(string)
 			var codes []string
-			for _, v := range req.Params["code"].([]interface{}) {
+			for _, v := range req.Params["codes"].([]interface{}) {
 				codes = append(codes, v.(string))
 			}
 			ch := make(chan *Class)
