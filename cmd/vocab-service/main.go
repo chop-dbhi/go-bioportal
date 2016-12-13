@@ -45,7 +45,7 @@ func main() {
 	// Initialize the service.
 	svc, err := NewService(neoaddr, -1)
 	if err != nil {
-		log.Fatalf("could not connect to the servce: %s")
+		log.Fatalf("could not connect to the servce: %s", err)
 	}
 
 	// Top-level context that is cancellable by signals.
