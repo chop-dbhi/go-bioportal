@@ -25,64 +25,22 @@ func (s *service) Match(cxt context.Context, vocab, pattern string, res chan<- *
 		return errors.New("pattern cannot be empty")
 	}
 
-	// Case insensitive.
-	pattern = strings.ToLower(pattern)
-
-	conn, err := s.pool.OpenPool()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	stmt, err := conn.PrepareNeo(`
+	query := `
 		MATCH (v:Vocabulary {id: {vocab}})<-[:classOf]-(c:Class)
 		WHERE lower(c.label) =~ {pattern}
 			OR any(syn in c.synonyms where lower(syn) =~ {pattern})
 		RETURN c.id, v.id, c.label, c.code, c.synonyms
-	`)
-	if err != nil {
-		return err
-	}
+	`
 
-	rows, err := stmt.QueryNeo(map[string]interface{}{
+	// Case insensitive.
+	pattern = strings.ToLower(pattern)
+
+	params := map[string]interface{}{
 		"pattern": pattern,
 		"vocab":   vocab,
-	})
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	for {
-		vals, _, err := rows.NextNeo()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return err
-		}
-
-		c := &Class{
-			ID:    vals[0].(string),
-			Vocab: vals[1].(string),
-			Label: vals[2].(string),
-			Code:  vals[3].(string),
-		}
-
-		if vals[4] != nil {
-			for _, v := range vals[4].([]interface{}) {
-				c.Synonyms = append(c.Synonyms, v.(string))
-			}
-		}
-
-		select {
-		case <-cxt.Done():
-			return nil
-
-		case res <- c:
-		}
 	}
 
-	return nil
+	return s.traversal(cxt, query, params, res)
 }
 
 // Get a class by code.
@@ -197,15 +155,8 @@ func (s *service) Validate(vocab string, codes []string) ([]bool, error) {
 	return bools, nil
 }
 
-func (s *service) traversal(cxt context.Context, query, vocab, code string, res chan<- *Class) error {
-	if vocab == "" {
-		return errors.New("vocab cannot be empty")
-	}
-
-	if code == "" {
-		return errors.New("code must be specified")
-	}
-
+// traversal executes a query and populates a channel of classes that match.
+func (s *service) traversal(cxt context.Context, query string, params map[string]interface{}, res chan<- *Class) error {
 	conn, err := s.pool.OpenPool()
 	if err != nil {
 		return err
@@ -217,10 +168,7 @@ func (s *service) traversal(cxt context.Context, query, vocab, code string, res 
 		return err
 	}
 
-	rows, err := stmt.QueryNeo(map[string]interface{}{
-		"code":  code,
-		"vocab": vocab,
-	})
+	rows, err := stmt.QueryNeo(params)
 	if err != nil {
 		return err
 	}
@@ -260,49 +208,118 @@ func (s *service) traversal(cxt context.Context, query, vocab, code string, res 
 
 // Parents returns all parents of a class.
 func (s *service) Parents(cxt context.Context, vocab, code string, res chan<- *Class) error {
+	if vocab == "" {
+		return errors.New("vocab cannot be empty")
+	}
+
+	if code == "" {
+		return errors.New("code must be specified")
+	}
+
 	query := `
 		MATCH (v:Vocabulary {id: {vocab}})<-[:classOf]-(:Class {code: {code}})-[:subClassOf]->(c:Class)
 		RETURN c.id, v.id, c.label, c.code, c.synonyms
 	`
-	return s.traversal(cxt, query, vocab, code, res)
+
+	params := map[string]interface{}{
+		"vocab": vocab,
+		"code":  code,
+	}
+
+	return s.traversal(cxt, query, params, res)
 }
 
 // Children returns all children of a class.
 func (s *service) Children(cxt context.Context, vocab, code string, res chan<- *Class) error {
+	if vocab == "" {
+		return errors.New("vocab cannot be empty")
+	}
+
+	if code == "" {
+		return errors.New("code must be specified")
+	}
+
 	query := `
 		MATCH (v:Vocabulary {id: {vocab}})<-[:classOf]-(:Class {code: {code}})<-[:subClassOf]-(c:Class)
 		RETURN c.id, v.id, c.label, c.code, c.synonyms
 	`
-	return s.traversal(cxt, query, vocab, code, res)
+
+	params := map[string]interface{}{
+		"vocab": vocab,
+		"code":  code,
+	}
+
+	return s.traversal(cxt, query, params, res)
 }
 
 // Get all ancestors of this class.
 func (s *service) Ancestors(cxt context.Context, vocab, code string, res chan<- *Class) error {
+	if vocab == "" {
+		return errors.New("vocab cannot be empty")
+	}
+
+	if code == "" {
+		return errors.New("code must be specified")
+	}
+
 	query := `
 		MATCH (v:Vocabulary {id: {vocab}})<-[:classOf]-(:Class {code: {code}})-[:subClassOf*1..]->(c:Class)
 		RETURN c.id, v.id, c.label, c.code, c.synonyms
 	`
-	return s.traversal(cxt, query, vocab, code, res)
+
+	params := map[string]interface{}{
+		"vocab": vocab,
+		"code":  code,
+	}
+
+	return s.traversal(cxt, query, params, res)
 }
 
 // Get all descendants of this class.
 func (s *service) Descendants(cxt context.Context, vocab, code string, res chan<- *Class) error {
+	if vocab == "" {
+		return errors.New("vocab cannot be empty")
+	}
+
+	if code == "" {
+		return errors.New("code must be specified")
+	}
+
 	query := `
 		MATCH (v:Vocabulary {id: {vocab}})<-[:classOf]-(:Class {code: {code}})<-[:subClassOf*1..]-(c:Class)
 		RETURN c.id, v.id, c.label, c.code, c.synonyms
 	`
-	return s.traversal(cxt, query, vocab, code, res)
+
+	params := map[string]interface{}{
+		"vocab": vocab,
+		"code":  code,
+	}
+
+	return s.traversal(cxt, query, params, res)
 }
 
 // Flatten takes a set of codes and returns all the codes themselves with
 // all descendants. The use case if for matching
 func (s *service) Flatten(cxt context.Context, vocab string, codes []string, res chan<- *Class) error {
+	if vocab == "" {
+		return errors.New("vocab cannot be empty")
+	}
+
+	if len(codes) == 0 {
+		return errors.New("at least one code must be specified")
+	}
+
 	query := `
-			MATCH (v:Vocabulary {id: {vocab}})<-[:classOf]-(:Class {code: {code}})<-[:subClassOf*0..]-(c:Class)
-			RETURN c.id, v.id, c.label, c.code, c.synonyms
-		`
+		MATCH (v:Vocabulary {id: {vocab}})<-[:classOf]-(:Class {code: {code}})<-[:subClassOf*0..]-(c:Class)
+		RETURN c.id, v.id, c.label, c.code, c.synonyms
+	`
+
 	for _, code := range codes {
-		if err := s.traversal(cxt, query, vocab, code, res); err != nil {
+		params := map[string]interface{}{
+			"vocab": vocab,
+			"code":  code,
+		}
+		if err := s.traversal(cxt, query, params, res); err != nil {
 			return err
 		}
 	}
